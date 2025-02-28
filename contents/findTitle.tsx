@@ -27,12 +27,41 @@ const replaceText = (node) => {
     }
 }
 
+// Function to find the main heading of the article and underline it
+const underlineArticleTitle = () => {
+    let titleElement = document.querySelector("h1"); // Main article title is often in <h1>
+
+    if (!titleElement) {
+        // Fallback to OpenGraph title
+        let metaTitle = document.querySelector("meta[property='og:title']")?.content;
+        if (!metaTitle) {
+            // Last resort: use the <title> tag (which might not always be reliable)
+            metaTitle = document.title;
+        }
+
+        // If we found a meta title but no <h1>, create a fake <h1> to display it
+        if (metaTitle) {
+            titleElement = document.createElement("h1");
+            titleElement.textContent = metaTitle;
+            titleElement.style.textAlign = "center";
+            document.body.insertBefore(titleElement, document.body.firstChild);
+        }
+    }
+
+    if (titleElement) {
+        titleElement.style.textDecoration = "underline";
+        titleElement.style.textDecorationColor = "#1D9BF0"; // Blue underline
+        titleElement.style.textDecorationThickness = "3px";
+    }
+}
+
 const PlasmoChanger = () => {
     useEffect(() => {
         if (!isNewsArticle()) return; // Do nothing if not a news article
 
-        // Initial replacement
+        // Replace text and underline title
         replaceText(document.body);
+        underlineArticleTitle();
 
         // Observe changes and apply replacements dynamically
         const observer = new MutationObserver((mutations) => {
