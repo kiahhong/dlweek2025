@@ -1,59 +1,72 @@
+import { useEffect } from "react"
 import type {
     PlasmoCSConfig,
     PlasmoGetOverlayAnchor,
     PlasmoWatchOverlayAnchor
-  } from "plasmo"
+} from "plasmo"
 
-  // only run for official plasmo website
-
-  export const config: PlasmoCSConfig = {
+export const config: PlasmoCSConfig = {
     matches: ["*://*.plasmo.com/*"]
-  }
+}
 
-  export const getOverlayAnchor: PlasmoGetOverlayAnchor = async () =>
+export const getOverlayAnchor: PlasmoGetOverlayAnchor = async () =>
     document.querySelector(`body`)
-  
-  const PlasmoChanger = () => {
+
+const PlasmoChanger = () => {
     const replaceText = (node: Node) => {
         if (node.nodeType === Node.TEXT_NODE) {
             const text = node.nodeValue;
             if (text && text.toLowerCase().includes("plasmo")) {
-                node.nodeValue = text.replace(/plasmo/gi, "plasmo😀");
+                // Create a span element with underline
+                const span = document.createElement('span');
+                span.style.textDecoration = 'underline';
+                span.style.textDecorationColor = '#1D9BF0'; // Using the same blue as the X button
+                span.style.textDecorationThickness = '2px';
+                span.textContent = text;
+                
+                // Replace the text node with our new span
+                node.parentNode?.replaceChild(span, node);
             }
         } else {
             node.childNodes.forEach(replaceText);
         }
     };
 
-    let observer: MutationObserver | null = null;
+    useEffect(() => {
+        let observer: MutationObserver | null = null;
 
-    // Listen for messages from popup
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-        if (message.action === "startReplacement") {
-            // Initial replacement
-            replaceText(document.body);
+        // Listen for messages from popup
+        const messageListener = (message, sender, sendResponse) => {
+            if (message.action === "startReplacement") {
+                // Initial replacement
+                replaceText(document.body);
 
-            // Start observing changes
-            observer = new MutationObserver((mutations) => {
-                mutations.forEach((mutation) => {
-                    mutation.addedNodes.forEach(replaceText);
+                // Start observing changes
+                observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        mutation.addedNodes.forEach(replaceText);
+                    });
                 });
-            });
 
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
-        }
-    });
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+        };
 
-    // Cleanup when component unmounts
-    return () => {
-        if (observer) {
-            observer.disconnect();
-        }
-    };
+        chrome.runtime.onMessage.addListener(messageListener);
+
+        // Cleanup when component unmounts
+        return () => {
+            if (observer) {
+                observer.disconnect();
+            }
+            chrome.runtime.onMessage.removeListener(messageListener);
+        };
+    }, []); // Empty dependency array means this effect runs once on mount
 
     return <></>;
-  }
-  export default PlasmoChanger
+}
+
+export default PlasmoChanger
