@@ -7,10 +7,16 @@ function IndexPopup() {
   const [progress, setProgress] = useState(0)
 
   // Reset progress and show the progress bar when button is clicked
-  const handleXButtonClick = () => {
+  const handleXButtonClick = async () => {
     setShowProgress(true)
     setProgress(0)
     console.log("X button clicked!")
+    
+    // Send message to content script
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
+    if (tabs[0]?.id) {
+      chrome.tabs.sendMessage(tabs[0].id, { action: "startReplacement" })
+    }
   }
 
   // Progress bar animation effect
