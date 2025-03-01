@@ -12,13 +12,16 @@ from google.genai import types, Client
 from app.services.topic_modeler import TopicModeler
 from app.services.llm import LLMPrompts
 from app.services.search import Search
+from app.artifacts.BiasClassifier import BiasClassifier
 
 from app.models.TopicLLMOutput import TopicLLMOutput
+from app.models.FeedbackOutput import FeedbackOutput
 from app.models.FakenewsRequest import FakenewsRequest
 from app.models.ReferenceStatement import (
     ReferenceStatement,
     ReferenceStatementsResponse,
 )
+
 
 router = APIRouter()
 
@@ -53,6 +56,13 @@ async def get_topic_modeler() -> TopicModeler:
     Dependency function to get Topic Modeler
     """
     return router.topic_modeler
+
+
+async def get_bias_classifier() -> BiasClassifier:
+    """
+    Dependency function to get Bias Classifier
+    """
+    return router.bias_classifier
 
 
 @router.post(
@@ -125,8 +135,6 @@ async def get_references(
     # Add to context
     context.append({"topic": topic, "context": results_with_refs})
 
-    print(context)
-
     supported_statements = []
 
     for doc_index, document in enumerate(documents):
@@ -163,4 +171,56 @@ async def get_references(
                     )
                 )
 
-        return ReferenceStatementsResponse(statements=supported_statements)
+    # Convert supported_statements to a list of dictionaries
+    reference_statements_dicts = [
+        {
+            "document": stmt.document,
+            "sentenceIdx": stmt.sentenceIdx,
+            "sentence": stmt.sentence,
+            "references": stmt.references,
+        }
+        for stmt in supported_statements
+    ]
+
+    output = llm.models.generate_content(
+        model="gemini-2.0-flash-exp",
+        contents=json.dumps(
+            {
+                "unprocessed_text": " ".join(documents),
+                "reference_statements": reference_statements_dicts,
+            }
+        ),
+        config=types.GenerateContentConfig(
+            system_instruction=llm_prompts.feedback_prompt,
+            temperature=0.0,
+            max_output_tokens=1000,
+            response_mime_type="application/json",
+            response_schema=FeedbackOutput,
+        ),
+    )
+
+    if output.text:
+        try:
+            output = json.loads(output.text.replace("\\r\\n", ""))
+            structured_output_analysis = output["analysis"]
+            structured_output_sentiment = output["sentiment"]
+        except Exception as e:
+            print(e)
+            pass
+
+    return ReferenceStatementsResponse(
+        statements=supported_statements,
+        analysis=structured_output_analysis,
+        sentiment=structured_output_sentiment,
+    )
+
+
+@router.post(
+    "/bias",
+    tags=["Bias Classifier"],
+    response_model=List[float],
+)
+async def get_biasness(
+    text: str, bias_classifier: BiasClassifier = Depends(get_bias_classifier)
+):
+    return bias_classifier.predict(text)

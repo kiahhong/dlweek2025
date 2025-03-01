@@ -15,6 +15,7 @@ model_parameters = {
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    DEVICE: str = "cpu"
     GEMINI_API: str
     SERPAPI_API: str
 

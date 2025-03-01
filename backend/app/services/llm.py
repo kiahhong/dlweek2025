@@ -23,3 +23,13 @@ class LLMPrompts:
             topics: [List of topics that are descriptive but short enough to search]
         }
         """
+
+        self.feedback_prompt = """
+        Based on the following data and references provided for the data, provide an analytical overview of the article including the use hedging terms (e.g. most think that) or excessive adverbs (shocking, disgusting) as well as a genral overall sentiment of the text.
+
+        Make sure to return your output in the following format:
+        {
+            analysis: str,
+            sentiment: positive | neutral | negative
+        }
+        """
