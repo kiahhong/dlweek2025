@@ -11,3 +11,5 @@ class ReferenceStatement(BaseModel):
 
 class ReferenceStatementsResponse(BaseModel):
     statements: List[ReferenceStatement]
+    analysis: str
+    sentiment: str

@@ -5,11 +5,9 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 class BiasClassifier:
     def __init__(self, device):  # Fixed __init__ method
         self.device = device
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            "bucketresearch/politicalBiasBERT"
-        )
+        self.tokenizer = AutoTokenizer.from_pretrained("KiahHong/distilled-bias-bert")
         self.model = AutoModelForSequenceClassification.from_pretrained(
-            "bucketresearch/politicalBiasBERT"
+            "KiahHong/distilled-bias-bert"
         ).to(self.device)
         self.model.eval()  # Set model to evaluation mode
 
@@ -22,8 +20,9 @@ class BiasClassifier:
             max_length=512,
         )
         inputs = {key: val.to(self.device) for key, val in inputs.items()}
+        inputs.pop("token_type_ids", None)
         with torch.no_grad():
             outputs = self.model(**inputs)
             logits = outputs.logits
-            prediction = torch.argmax(logits, dim=-1).item()
-        return prediction
+            probabilities = torch.softmax(logits, dim=-1)[0].tolist()
+        return probabilities
