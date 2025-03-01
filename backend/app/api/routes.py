@@ -22,7 +22,7 @@ from app.models.ReferenceStatement import (
     ReferenceStatement,
     ReferenceStatementsResponse,
 )
-
+from app.models.ClickbaitRequest import ClickbaitRequest, ClickbaitOutput
 
 router = APIRouter()
 
@@ -235,9 +235,57 @@ async def get_biasness(
 @router.post(
     "/imageClassify",
     tags=["Generated Image Classifier"],
-    response_model=List[float]
+    response_model=str
 )
 async def get_genimgness(
     path: str, genimg_classifier: GenImgClassifier = Depends(get_genimg_classifier)
 ):
+    print(genimg_classifier.predict(path))
     return genimg_classifier.predict(path)
+
+
+@router.post(
+    "/clickbait",
+    tags=["Article clickbait detector"],
+    response_model=ClickbaitRequest,
+)
+async def get_clickbait(
+    documentsObj: ClickbaitRequest,
+    modeler: TopicModeler = Depends(get_topic_modeler),
+    llm: Client = Depends(get_llm),
+    llm_prompts: LLMPrompts = Depends(get_llm_prompts),
+) -> List[str,str]:
+    
+    documents = documentsObj.documents
+
+    output = llm.models.generate_content(
+        model="gemini-2.0-flash-exp",
+        contents=json.dumps(
+            {
+                "article": " ".join(documents),
+                "body": documents.new_article,
+            }
+        ),
+        config=types.GenerateContentConfig(
+            system_instruction=llm_prompts.article_prompt,
+            temperature=0.0,
+            max_output_tokens=1000,
+            response_mime_type="application/json",
+            response_schema=ClickbaitOutput,
+        ),
+    )
+
+    if output.text:
+        try:
+            output = json.loads(output.text.replace("\\r\\n", ""))
+            structured_output_clickbait = output["clickbait"]
+            structured_output_new_header = output["new_header"]
+        except Exception as e:
+            print(e)
+            pass
+
+    return ClickbaitOutput(
+    
+        clickbait=structured_output_clickbait,
+        new_header=structured_output_new_header,
+    )

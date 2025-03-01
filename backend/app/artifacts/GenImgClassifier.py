@@ -6,7 +6,7 @@ from PIL import Image
 class GenImgClassifier:
     def __init__(self, device): # Fixed __init__ method
         self.device = device
-        self.model = ViTForImageClassification.from_pretrained(model_name, num_labels=2, ignore_mismatched_sizes=True).to(self.device)
+        self.model = ViTForImageClassification.from_pretrained("O-ww-O/custom-vit", num_labels=2, ignore_mismatched_sizes=True).to(self.device)
         self.model.eval() # set model to evaluation mode
 
     def predict(self, image_path):
