@@ -11,6 +11,7 @@ from app.services.topic_modeler import TopicModeler
 from app.services.llm import LLMPrompts
 from app.services.search import Search
 from app.artifacts.BiasClassifier import BiasClassifier
+from app.artifacts.GenImgClassifier import GenImgClassifier
 
 from google import genai
 
@@ -38,6 +39,7 @@ async def lifespan(app: FastAPI):
     router.search = Search(serpapi_api)
     router.topic_modeler = TopicModeler(num_topics=5)
     router.bias_classifier = BiasClassifier(settings.DEVICE)
+    router.genimg_classifier = GenImgClassifier(settings.DEVICE)
 
     logger.info("Hello There!")
 

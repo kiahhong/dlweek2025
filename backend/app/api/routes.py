@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends, Body
-from typing import List, Annotated, Optional
+from fastapi import APIRouter, Depends
+from typing import List
 import logging
 import nltk
 from nltk.tokenize import sent_tokenize
@@ -13,6 +13,7 @@ from app.services.topic_modeler import TopicModeler
 from app.services.llm import LLMPrompts
 from app.services.search import Search
 from app.artifacts.BiasClassifier import BiasClassifier
+from app.artifacts.GenImgClassifier import GenImgClassifier
 
 from app.models.TopicLLMOutput import TopicLLMOutput
 from app.models.FeedbackOutput import FeedbackOutput
@@ -23,6 +24,7 @@ from app.models.ReferenceStatement import (
 )
 
 import redis
+from app.models.ClickbaitRequest import ClickbaitRequest, ClickbaitOutput
 
 router = APIRouter()
 
@@ -71,6 +73,11 @@ async def get_redis() -> redis.Redis:
     Dependency function to get Redis client
     """
     return router.redis
+async def get_genimg_classifier() -> GenImgClassifier:
+    """
+    Dependency function to get GenImg Classifier
+    """
+    return router.genimg_classifier
 
 
 @router.post(
@@ -284,3 +291,57 @@ async def get_cache(redis: redis.Redis = Depends(get_redis)):
         'keys_count': len(keys),
         'contents': cache_contents
     }
+
+
+@router.post("/imageClassify", tags=["Generated Image Classifier"], response_model=str)
+async def get_genimgness(
+    path: str, genimg_classifier: GenImgClassifier = Depends(get_genimg_classifier)
+):
+    print(genimg_classifier.predict(path))
+    return genimg_classifier.predict(path)
+
+
+@router.post(
+    "/clickbait",
+    tags=["Article clickbait detector"],
+    response_model=ClickbaitRequest,
+)
+async def get_clickbait(
+    request: ClickbaitRequest,
+    llm: Client = Depends(get_llm),
+    llm_prompts: LLMPrompts = Depends(get_llm_prompts),
+) -> ClickbaitOutput:
+    request_article = request.article
+    request_body = request.body
+
+    output = llm.models.generate_content(
+        model="gemini-2.0-flash-exp",
+        contents=json.dumps(
+            {
+                "article": request_article,
+                "body": request_body,
+            }
+        ),
+        config=types.GenerateContentConfig(
+            system_instruction=llm_prompts.article_prompt,
+            temperature=0.0,
+            max_output_tokens=1000,
+            response_mime_type="application/json",
+            response_schema=ClickbaitOutput,
+        ),
+    )
+
+    if output.text:
+        try:
+            output = json.loads(output.text.replace("\\r\\n", ""))
+            structured_output_clickbait = output["clickbait"]
+            structured_output_new_header = output["new_header"]
+        except Exception as e:
+            print(e)
+            pass
+
+    return ClickbaitOutput(
+        clickbait=structured_output_clickbait,
+        new_header=structured_output_new_header,
+    )
+
