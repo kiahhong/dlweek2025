@@ -216,6 +216,82 @@ const getElementPath = (element: Element) => {
     return `[data-ref-id="${uniqueId}"]`;
 }
 
+const getBase64FromImageUrl = async (url: string): Promise<string | null> => {
+    try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (e) {
+        console.error("Error converting image to base64:", e);
+        return null;
+    }
+}
+
+const getAllImages = async () => {
+    const images = document.querySelectorAll('img');
+    const imageData = [];
+    
+    for (const img of images) {
+        // Skip tiny images (likely icons)
+        if (img.width < 100 || img.height < 100) continue;
+        
+        // Skip images without src
+        if (!img.src) continue;
+        
+        try {
+            const base64Data = await getBase64FromImageUrl(img.src);
+            if (base64Data) {
+                // Remove the data:image/xyz;base64, prefix
+                const base64Clean = base64Data.split(',')[1];
+                imageData.push({
+                    element: img,
+                    base64: base64Clean
+                });
+            }
+        } catch (e) {
+            console.error("Error processing image:", e);
+        }
+    }
+    
+    return imageData;
+}
+
+const processImages = async (images: any[]) => {
+    for (const imgData of images) {
+        try {
+            console.log("sending to /imageClassify")
+            const response = await fetch('http://localhost:8000/imageClassify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    image: imgData.base64
+                })
+            });
+
+            if (!response.ok) continue;
+
+            const result = await response.json();
+            console.log("Result from image process:", result.prediction);
+            if (result.prediction) {  // if fake
+                // If we got back a modified image, replace the original
+                if (result.image) {
+                    console.log("Replacing image with modified version", imgData)
+                    imgData.element.src = `data:image/jpeg;base64,${result.image}`;
+                }
+            }
+        } catch (e) {
+            console.error("Error checking image:", e);
+        }
+    }
+}
+
 const sendToBackend = async (elements: any[]) => {
     try {
         // only send the text in a list of strings
@@ -437,6 +513,12 @@ const PlasmoChanger = () => {
                         return;
                     }
                     (window as any).__referencesProcessed = true;
+ 
+                    // Process images first
+                    console.log("Processing images...");
+                    const images = await getAllImages();
+                    await processImages(images);
+                    console.log("Finished processing images");
 
                     const elements = getTextElements();
                     
