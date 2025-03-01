@@ -2,6 +2,7 @@
 ![GitHub stars](https://img.shields.io/github/stars/kiahhong/dlweek2025.svg)
 [![MIT license](https://img.shields.io/github/license/kiahhong/dlweek2025.svg)](https://github.com/kiahhong/dlweek2025/blob/main/LICENSE)
 
+
 ### About the Project
 X to Doubt is a cutting-edge browser extension that harnesses the power of deep learning to address critical challenges in today’s rapidly evolving digital media landscape. Designed to empower users with clarity and confidence, it offers advanced tools to:
 
@@ -20,11 +21,18 @@ With X to Doubt, navigate the digital world with trust and precision.
 - [Gemini](https://cloud.google.com/vertex-ai?hl=en)
 - [SerpAPI](https://serpapi.com/)
 
+### Development Tools
+[![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![pip](https://img.shields.io/badge/pip-3776AB?logo=python&logoColor=white)](https://pip.pypa.io/en/stable/)
+[![pnpm](https://img.shields.io/badge/pnpm-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
+
+
 ### Open Source models developed
 | Base Model Arch | Finetuned/Distilled Model | Use Case |
 | -------------- | ------------------------- | -------- |
 | [politicalBiasBert](https://huggingface.co/bucketresearch/politicalBiasBERT) | [distilled-bias-bert](https://huggingface.co/KiahHong/distilled-bias-bert) | Politial Bias Classification |
 | [Vision Transformer (ViT) ](https://huggingface.co/google/vit-base-patch16-224) | [ViT for Deepfake](https://huggingface.co/O-ww-O/custom-vit) | Deepfake Detection |
+
 
 ### Getting Started
 1. Clone the Repo
