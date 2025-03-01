@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 import logging
 import nltk
@@ -27,6 +27,8 @@ import redis
 from app.models.ClickbaitRequest import ClickbaitRequest, ClickbaitOutput
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+import base64
+from io import BytesIO
 
 router = APIRouter()
 
@@ -297,10 +299,19 @@ async def get_cache(redis: redis.Redis = Depends(get_redis)):
 
 @router.post("/imageClassify", tags=["Generated Image Classifier"], response_model=str)
 async def get_genimgness(
-    path: str, genimg_classifier: GenImgClassifier = Depends(get_genimg_classifier)
+    payload: dict,
+    genimg_classifier: GenImgClassifier = Depends(get_genimg_classifier)
 ):
-    print(genimg_classifier.predict(path))
-    return genimg_classifier.predict(path)
+    base64_image = payload.get("image")
+    if not base64_image:
+        raise HTTPException(status_code=400, detail="No image provided")
+    
+    try:
+        # Convert base64 to bytes
+        image_data = base64.b64decode(base64_image)
+        return genimg_classifier.predict_base64(image_data)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid image data: {str(e)}")
 
 
 @router.post(

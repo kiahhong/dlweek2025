@@ -1,23 +1,33 @@
 const BASE_URL = 'http://localhost:8000'  // Adjust if your server runs on a different port
+const fs = require('fs');
 
 async function testEndpoints() {
     try {
-        // // Test 1: References endpoint
-        // console.log('\n🧪 Testing /references endpoint...')
-        // const referencesResponse = await fetch(`${BASE_URL}/references`, {
-        //     method: 'POST',
-        //     headers: {
-        //         'Content-Type': 'application/json'
-        //     },
-        //     body: JSON.stringify({
-        //         documents: [
-        //             "Singapore's healthcare system is ranked among the best in the world. The country has excellent medical facilities and a robust public health infrastructure.",
-        //             "The MRT system in Singapore experiences frequent breakdowns and delays. This has been a major source of frustration for commuters in recent years."
-        //         ]
-        //     })
-        // })
-        // const referencesData = await referencesResponse.json()
-        // console.log('✅ References Response:', referencesData)
+        // Test image classification
+        console.log('\n🧪 Testing /imageClassify endpoint...')
+        
+        // Read image and convert to base64
+        const imagePath = './assets/aiimg.webp';  // Put your test image path here
+        const imageBuffer = fs.readFileSync(imagePath);
+        const base64Image = imageBuffer.toString('base64');
+
+        const imageResponse = await fetch(`${BASE_URL}/imageClassify`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                image: base64Image 
+            })
+        });
+        
+        if (!imageResponse.ok) {
+            const errorData = await imageResponse.text();
+            console.error('Image classification error:', errorData);
+        } else {
+            const imageData = await imageResponse.json();
+            console.log('✅ Image Classification Result:', imageData);
+        }
 
         // Test 2: Bias endpoint with different texts
         console.log('\n🧪 Testing /bias endpoint...')
@@ -45,21 +55,6 @@ async function testEndpoints() {
             const biasData = await biasResponse.json()
             console.log(`✅ Bias Analysis for "${text.slice(0, 30)}...":`, biasData)
         }
-
-        // // Test 3: Echo endpoint (for debugging)
-        // console.log('\n🧪 Testing /echo endpoint...')
-        // const testPayload = {
-        //     text: "yes"
-        // }
-        // const echoResponse = await fetch(`${BASE_URL}/echo`, {
-        //     method: 'POST',
-        //     headers: {
-        //         'Content-Type': 'application/json'
-        //     },
-        //     body: JSON.stringify(testPayload)
-        // })
-        // const echoData = await echoResponse.json()
-        // console.log('✅ Echo Response:', echoData)
 
     } catch (error) {
         console.error('❌ Error during testing:', error)
