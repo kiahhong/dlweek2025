@@ -85,8 +85,9 @@ async def get_references(
     llm_prompts: LLMPrompts = Depends(get_llm_prompts),
     search: Search = Depends(get_search),
     redis: redis.Redis = Depends(get_redis),
-) -> List[str]:
+) -> ReferenceStatementsResponse:
     url = payload.get("url")
+    print(url, "\n\nurl\n\n")
     
     # Check cache first
     if url:

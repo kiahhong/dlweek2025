@@ -219,7 +219,7 @@ const getElementPath = (element: Element) => {
 const sendToBackend = async (elements: any[]) => {
     try {
         // only send the text in a list of strings
-        const response = await fetch('http://localhost:8000/echo', {
+        const response = await fetch('http://localhost:8000/references', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
