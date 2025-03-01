@@ -218,7 +218,7 @@ async def get_references(
 @router.post(
     "/bias",
     tags=["Bias Classifier"],
-    response_model=ReferenceStatementsResponse,
+    response_model=List[float],
 )
 async def get_biasness(
     text: str, bias_classifier: BiasClassifier = Depends(get_bias_classifier)
