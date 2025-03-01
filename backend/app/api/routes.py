@@ -12,6 +12,7 @@ from google.genai import types, Client
 from app.services.topic_modeler import TopicModeler
 from app.services.llm import LLMPrompts
 from app.services.search import Search
+from app.artifacts.BiasClassifier import BiasClassifier
 
 from app.models.TopicLLMOutput import TopicLLMOutput
 from app.models.FakenewsRequest import FakenewsRequest
@@ -19,6 +20,7 @@ from app.models.ReferenceStatement import (
     ReferenceStatement,
     ReferenceStatementsResponse,
 )
+
 
 router = APIRouter()
 
@@ -53,6 +55,13 @@ async def get_topic_modeler() -> TopicModeler:
     Dependency function to get Topic Modeler
     """
     return router.topic_modeler
+
+
+async def get_bias_classifier() -> BiasClassifier:
+    """
+    Dependency function to get Bias Classifier
+    """
+    return router.bias_classifier
 
 
 @router.post(
@@ -125,8 +134,6 @@ async def get_references(
     # Add to context
     context.append({"topic": topic, "context": results_with_refs})
 
-    print(context)
-
     supported_statements = []
 
     for doc_index, document in enumerate(documents):
@@ -164,3 +171,14 @@ async def get_references(
                 )
 
         return ReferenceStatementsResponse(statements=supported_statements)
+
+
+@router.post(
+    "/bias",
+    tags=["Bias Classifier"],
+    response_model=ReferenceStatementsResponse,
+)
+async def get_biasness(
+    text: str, bias_classifier: BiasClassifier = Depends(get_bias_classifier)
+):
+    return bias_classifier.predict(text)
