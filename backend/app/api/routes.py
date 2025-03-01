@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 import logging
 import nltk
@@ -22,7 +22,13 @@ from app.models.ReferenceStatement import (
     ReferenceStatement,
     ReferenceStatementsResponse,
 )
+
+import redis
 from app.models.ClickbaitRequest import ClickbaitRequest, ClickbaitOutput
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+import base64
+from io import BytesIO
 
 router = APIRouter()
 
@@ -66,6 +72,11 @@ async def get_bias_classifier() -> BiasClassifier:
     return router.bias_classifier
 
 
+async def get_redis() -> redis.Redis:
+    """
+    Dependency function to get Redis client
+    """
+    return router.redis
 async def get_genimg_classifier() -> GenImgClassifier:
     """
     Dependency function to get GenImg Classifier
@@ -79,13 +90,24 @@ async def get_genimg_classifier() -> GenImgClassifier:
     response_model=ReferenceStatementsResponse,
 )
 async def get_references(
-    documentsObj: FakenewsRequest,
+    payload: dict,
     modeler: TopicModeler = Depends(get_topic_modeler),
     llm: Client = Depends(get_llm),
     llm_prompts: LLMPrompts = Depends(get_llm_prompts),
     search: Search = Depends(get_search),
-) -> List[str]:
-    documents = documentsObj.documents
+    redis: redis.Redis = Depends(get_redis),
+) -> ReferenceStatementsResponse:
+    url = payload.get("url")
+    print(url, "\n\nurl\n\n")
+    
+    # Check cache first
+    if url:
+        cached_response = redis.get(url)
+        if cached_response:
+            logger.info(f"Cache hit for URL: {url}")
+            return json.loads(cached_response)
+    
+    documents = payload.get("documents")
 
     modeler.set_model_params(
         iterations=100,
@@ -216,42 +238,97 @@ async def get_references(
             print(e)
             pass
 
-    return ReferenceStatementsResponse(
+    response = ReferenceStatementsResponse(
         statements=supported_statements,
         analysis=structured_output_analysis,
         sentiment=structured_output_sentiment,
     )
 
+    # Cache the response with the URL as key
+    if url:
+        redis.setex(
+            url,
+            3600,  # cache for 1 hour
+            json.dumps(response.dict())
+        )
+        logger.info(f"Cached response for URL: {url}")
+
+    return response
+
 
 @router.post(
     "/bias",
     tags=["Bias Classifier"],
-    response_model=List[float],
+    response_model=str,
 )
 async def get_biasness(
-    text: str, bias_classifier: BiasClassifier = Depends(get_bias_classifier)
+    payload: dict, bias_classifier: BiasClassifier = Depends(get_bias_classifier)
 ):
-    return bias_classifier.predict(text)
+    text = payload.get("text")
+    url = payload.get("url")    
+    prediction = bias_classifier.predict(text, url)
+    print(prediction)
+    return prediction
+
+# dummy endpoint that just prints the payload
+@router.post("/echo", tags=["Echo"])
+async def echo(payload: dict):
+    print(payload)
+    return payload
+
+@router.get("/cache", tags=["Debug"])
+async def get_cache(redis: redis.Redis = Depends(get_redis)):
+    # Get all keys
+    keys = redis.keys('*')
+    cache_contents = {}
+    
+    # Get values for all keys
+    for key in keys:
+        value = redis.get(key)
+        ttl = redis.ttl(key)
+        cache_contents[key] = {
+            'value': json.loads(value) if value else None,
+            'ttl': ttl
+        }
+    
+    return {
+        'keys_count': len(keys),
+        'contents': cache_contents
+    }
 
 
-@router.post("/imageClassify", tags=["Generated Image Classifier"], response_model=str)
+@router.post("/imageClassify", tags=["Generated Image Classifier"])
 async def get_genimgness(
-    path: str, genimg_classifier: GenImgClassifier = Depends(get_genimg_classifier)
+    payload: dict,
+    genimg_classifier: GenImgClassifier = Depends(get_genimg_classifier)
 ):
-    print(genimg_classifier.predict(path))
-    return genimg_classifier.predict(path)
+    base64_image = payload.get("image")
+    if not base64_image:
+        raise HTTPException(status_code=400, detail="No image provided")
+    
+    try:
+        # Convert base64 to bytes
+        image_data = base64.b64decode(base64_image)
+        prediction, modified_image_base64 = genimg_classifier.predict_base64(image_data)
+        
+        return {
+            "prediction": prediction == "fake",  # Convert to boolean
+            "image": modified_image_base64 if prediction == "fake" else base64_image
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid image data: {str(e)}")
 
 
 @router.post(
     "/clickbait",
     tags=["Article clickbait detector"],
-    response_model=ClickbaitRequest,
+    response_model=ClickbaitOutput,
 )
 async def get_clickbait(
     request: ClickbaitRequest,
     llm: Client = Depends(get_llm),
     llm_prompts: LLMPrompts = Depends(get_llm_prompts),
-) -> ClickbaitOutput:
+) -> JSONResponse:
     request_article = request.article
     request_body = request.body
 
@@ -280,9 +357,17 @@ async def get_clickbait(
         except Exception as e:
             print(e)
             pass
-
-    return ClickbaitOutput(
-        clickbait=structured_output_clickbait,
-        new_header=structured_output_new_header,
+    
+    print(structured_output_clickbait, structured_output_new_header)
+    return JSONResponse(
+        content={
+            "clickbait": structured_output_clickbait,
+            "new_header": structured_output_new_header
+        },
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+        }
     )
 
