@@ -253,92 +253,94 @@ interface BackendResponse {
 
 const PlasmoChanger = () => {
     useEffect(() => {
-        // Global flag to ensure we only run once per page
-        if ((window as any).__referencesProcessed) {
-            return;
-        }
-
-        // Function to process references
-        const processReferences = async () => {
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            if ((window as any).__referencesProcessed) {
-                return;
-            }
-            (window as any).__referencesProcessed = true;
-
-            const elements = getTextElements();
-            
-            if (elements.length < 10) {
-                return;
-            }
-
-            const totalTextLength = elements.reduce((sum, el) => sum + el.text.length, 0);
-            if (totalTextLength < 500) {
-                return;
-            }
-
-            console.log("Found elements:", elements);
-            const response2 = await sendToBackend(elements);
-            console.log("Response from backend:", response2);
-            
-            const response: BackendResponse = sampleJsonInput2;
-            
-            // Create a map of text content to elements for more reliable matching
-            const textToElement = new Map();
-            elements.forEach((el, idx) => {
-                // Normalize text for comparison
-                const normalizedText = el.text.trim().toLowerCase();
-                textToElement.set(normalizedText, { element: el, index: idx });
-            });
-            
-            // Add citations to the DOM elements
-            response.statements.forEach(statement => {
-                // Normalize statement text for comparison
-                const normalizedStatement = statement.sentence.trim().toLowerCase();
-                
-                // Find matching element by text content instead of index
-                const matchingElement = textToElement.get(normalizedStatement);
-                if (matchingElement) {
-                    const domElement = document.querySelector(matchingElement.element.path);
-                    if (domElement && domElement.textContent) {
-                        const refCount = statement.references.length;
-                        const originalText = domElement.textContent;
-                        
-                        // Create citation link element
-                        const citationLink = document.createElement('a');
-                        citationLink.href = statement.references[0];
-                        citationLink.style.cssText = 'text-decoration: none; color: blue; cursor: pointer; font-size: 0.75em; vertical-align: super;';
-                        citationLink.textContent = `[${refCount}]`;
-                        citationLink.target = '_blank';
-                        
-                        if (statement.references.length > 1) {
-                            citationLink.onclick = (e) => {
-                                e.preventDefault();
-                                statement.references.forEach(ref => window.open(ref, '_blank'));
-                            };
-                        }
-                        
-                        domElement.textContent = originalText;
-                        domElement.appendChild(citationLink);
-                        domElement.removeAttribute('data-ref-id');
+        // Listen for messages from the popup
+        const messageListener = (request: any, sender: any, sendResponse: any) => {
+            // Only process if it's our specific message
+            if (request.type === "ANALYZE_PAGE") {
+                // Function to process references
+                const processReferences = async () => {
+                    if ((window as any).__referencesProcessed) {
+                        return;
                     }
+                    (window as any).__referencesProcessed = true;
+
+                    const elements = getTextElements();
+                    
+                    if (elements.length < 10) {
+                        return;
+                    }
+
+                    const totalTextLength = elements.reduce((sum, el) => sum + el.text.length, 0);
+                    if (totalTextLength < 500) {
+                        return;
+                    }
+
+                    console.log("Found elements:", elements);
+                    const response2 = await sendToBackend(elements);
+                    console.log("Response from backend:", response2);
+                    
+                    const response: BackendResponse = sampleJsonInput2;
+                    
+                    // Create a map of text content to elements for more reliable matching
+                    const textToElement = new Map();
+                    elements.forEach((el, idx) => {
+                        // Normalize text for comparison
+                        const normalizedText = el.text.trim().toLowerCase();
+                        textToElement.set(normalizedText, { element: el, index: idx });
+                    });
+                    
+                    // Add citations to the DOM elements
+                    response.statements.forEach(statement => {
+                        // Normalize statement text for comparison
+                        const normalizedStatement = statement.sentence.trim().toLowerCase();
+                        
+                        // Find matching element by text content instead of index
+                        const matchingElement = textToElement.get(normalizedStatement);
+                        if (matchingElement) {
+                            const domElement = document.querySelector(matchingElement.element.path);
+                            if (domElement && domElement.textContent) {
+                                const refCount = statement.references.length;
+                                const originalText = domElement.textContent;
+                                
+                                // Create citation link element
+                                const citationLink = document.createElement('a');
+                                citationLink.href = statement.references[0];
+                                citationLink.style.cssText = 'text-decoration: none; color: blue; cursor: pointer; font-size: 0.75em; vertical-align: super;';
+                                citationLink.textContent = `[${refCount}]`;
+                                citationLink.target = '_blank';
+                                
+                                if (statement.references.length > 1) {
+                                    citationLink.onclick = (e) => {
+                                        e.preventDefault();
+                                        statement.references.forEach(ref => window.open(ref, '_blank'));
+                                    };
+                                }
+                                
+                                domElement.textContent = originalText;
+                                domElement.appendChild(citationLink);
+                                domElement.removeAttribute('data-ref-id');
+                            }
+                        }
+                    });
+                };
+
+                // Run the processing
+                if (document.readyState === 'complete') {
+                    processReferences();
+                } else {
+                    window.addEventListener('load', processReferences, { once: true });
                 }
-            });
+            }
         };
 
-        // Run when the page is fully loaded and stable
-        if (document.readyState === 'complete') {
-            processReferences();
-        } else {
-            window.addEventListener('load', processReferences, { once: true });
-        }
+        // Add the message listener for chrome runtime messages
+        chrome.runtime.onMessage.addListener(messageListener);
 
         // Cleanup
         return () => {
-            window.removeEventListener('load', processReferences);
+            chrome.runtime.onMessage.removeListener(messageListener);
         };
-    }, []); 
+    }, []);
 
     return null;
 }

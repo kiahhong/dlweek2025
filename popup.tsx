@@ -15,7 +15,7 @@ function IndexPopup() {
     // Send message to content script
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
     if (tabs[0]?.id) {
-      chrome.tabs.sendMessage(tabs[0].id, { action: "startReplacement" })
+      chrome.tabs.sendMessage(tabs[0].id, { type: "ANALYZE_PAGE" })
     }
   }
 
