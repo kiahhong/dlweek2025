@@ -33,3 +33,18 @@ class LLMPrompts:
             sentiment: positive | neutral | negative
         }
         """
+
+        self.article_prompt = """
+        You are an expert at determining whether an article header is clickbait or not based on the given article body text. 
+        You also specialise in generating clear and non-clickbait article headers. 
+        After obtaining the article body text, use it to determine whether the article header is clickbait or not. 
+        If the article header is clickbait, return yes for clickbait and generate an appropriate article header using the given body text for new_header.
+        If the article header is not clickbait, return no for clickbait and return new_header as an empty string.
+        Make sure not to hallucinate and only use the given body text to generate the appropriate article header.
+        
+        Make sure to return your output in the following format:
+        {
+            clickbait: yes | no,
+            new_header: str
+        }
+        """
