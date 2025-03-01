@@ -71,13 +71,13 @@ async def get_bias_classifier() -> BiasClassifier:
     response_model=ReferenceStatementsResponse,
 )
 async def get_references(
-    documentsObj: FakenewsRequest,
+    payload: dict,
     modeler: TopicModeler = Depends(get_topic_modeler),
     llm: Client = Depends(get_llm),
     llm_prompts: LLMPrompts = Depends(get_llm_prompts),
     search: Search = Depends(get_search),
 ) -> List[str]:
-    documents = documentsObj.documents
+    documents = payload.get("documents")
 
     modeler.set_model_params(
         iterations=100,
@@ -218,11 +218,19 @@ async def get_references(
 @router.post(
     "/bias",
     tags=["Bias Classifier"],
-    response_model=List[float],
+    response_model=str,
 )
 async def get_biasness(
     payload: dict, bias_classifier: BiasClassifier = Depends(get_bias_classifier)
 ):
     text = payload.get("text")
-    return bias_classifier.predict(text)
+    url = payload.get("url")    
+    prediction = bias_classifier.predict(text, url)
+    print(prediction)
+    return prediction
 
+# dummy endpoint that just prints the payload
+@router.post("/echo", tags=["Echo"])
+async def echo(payload: dict):
+    print(payload)
+    return payload
