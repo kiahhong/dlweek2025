@@ -22,6 +22,6 @@ class GenImgClassifier:
             outputs = self.model(img_tensor)
             logits = outputs.logits
             pred = torch.argmax(logits, dim=1).item()
-        class_names = ['real', 'fake']
+        class_names = ['fake','real']
         label = class_names[pred]
         return label
