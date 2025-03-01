@@ -37,11 +37,21 @@ git clone https://github.com/kiahhong/dlweek2025
 pnpm dev
 ```
 
-2. Visit the Extension Settings Page from your Chromium Browser.
-   ```sh
-   chrome://extensions/
-   ```
+3. Visit the Extension Settings Page from your Chromium Browser.
+```sh
+chrome://extensions/
+```
    
-3. Enable Developer Mode.
+4. Enable Developer Mode.
    
 5. Load and Enable the extension from the `extension` folder in this repo.
+
+6. cd into backend
+```sh
+cd backend/
+```
+
+7. start the backend
+```
+docker-compose up
+```
