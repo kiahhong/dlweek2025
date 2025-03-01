@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Body
+from typing import List, Annotated, Optional
 import logging
-from typing import List
 import nltk
 from nltk.tokenize import sent_tokenize
+
 
 import json
 
@@ -13,12 +14,17 @@ from app.services.llm import LLMPrompts
 from app.services.search import Search
 
 from app.models.TopicLLMOutput import TopicLLMOutput
+from app.models.FakenewsRequest import FakenewsRequest
+from app.models.ReferenceStatement import (
+    ReferenceStatement,
+    ReferenceStatementsResponse,
+)
 
 router = APIRouter()
 
 logger = logging.getLogger("uvicorn.error")
 
-nltk.download("punkt", quiet=True)
+nltk.download("punkt_tab", quiet=True)
 
 
 async def get_llm() -> Client:
@@ -49,14 +55,20 @@ async def get_topic_modeler() -> TopicModeler:
     return router.topic_modeler
 
 
-@router.post("/topics", tags=["Fake news detector"], response_model=List[str])
-async def get_topics(
-    documents: List[str],
+@router.post(
+    "/references",
+    tags=["Fake news detector"],
+    response_model=ReferenceStatementsResponse,
+)
+async def get_references(
+    documentsObj: FakenewsRequest,
     modeler: TopicModeler = Depends(get_topic_modeler),
     llm: Client = Depends(get_llm),
     llm_prompts: LLMPrompts = Depends(get_llm_prompts),
     search: Search = Depends(get_search),
 ) -> List[str]:
+    documents = documentsObj.documents
+
     modeler.set_model_params(
         iterations=100,
         alpha="symmetric",
@@ -110,8 +122,10 @@ async def get_topics(
                     }
                 )
 
-        # Add to context
-        context.append({"topic": topic, "context": results_with_refs})
+    # Add to context
+    context.append({"topic": topic, "context": results_with_refs})
+
+    print(context)
 
     supported_statements = []
 
@@ -125,34 +139,28 @@ async def get_topics(
 
             supporting_references = []
 
-            # Check each sentence against all search results
             for topic_data in context:
                 for ref in topic_data["context"]:
-                    # Create a set of significant words from the sentence (excluding stopwords)
                     sent_words = set(
                         word.lower() for word in sentence.split() if len(word) > 3
                     )
-
-                    # Count how many significant words from the sentence appear in the reference
                     content = ref["content"].lower()
                     matches = sum(1 for word in sent_words if word in content)
 
-                    # If enough words match (threshold can be adjusted)
                     if matches >= 3 or (
                         matches / len(sent_words) >= 0.3 if sent_words else False
                     ):
                         if ref["url"] not in supporting_references:
                             supporting_references.append(ref["url"])
 
-            # If we found supporting references, add to our results
             if supporting_references:
                 supported_statements.append(
-                    {
-                        "document": doc_index,
-                        "sentenceIdx": sent_index,
-                        "sentence": sentence,
-                        "references": supporting_references,
-                    }
+                    ReferenceStatement(
+                        document=doc_index,
+                        sentenceIdx=sent_index,
+                        sentence=sentence,
+                        references=supporting_references,
+                    )
                 )
 
-    return supported_statements
+        return ReferenceStatementsResponse(statements=supported_statements)
