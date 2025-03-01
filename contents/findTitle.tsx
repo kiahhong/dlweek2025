@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import type { PlasmoCSConfig } from "plasmo"
 
 export const config: PlasmoCSConfig = {
@@ -108,34 +108,47 @@ const sendToBackend = async (html: string) => {
 
         const data = await response.json();
         console.log(data);
+        return data;
     } catch (error) {
         console.error('Failed to send to backend:', error);
     }
 }
 
 const PlasmoChanger = () => {
+    const [bias, setBias] = useState<string>("");
+    
     useEffect(() => {
-        if (!isNewsArticle()) return; // Do nothing if not a news article
+        const checkBias = async () => {
+            if (!isNewsArticle()) return; // Do nothing if not a news article
 
-        // Replace text and underline title
-        replaceText(document.body);
-        underlineArticleTitle();
+            // Replace text and underline title
+            replaceText(document.body);
+            underlineArticleTitle();
 
-        // Get the modified HTML and send to backend
-        const modifiedHtml = parseHTMLToMarkdown();
-        sendToBackend(modifiedHtml);
+            // Get the modified HTML and send to backend
+            const modifiedHtml = parseHTMLToMarkdown();
+            const bias = await sendToBackend(modifiedHtml);
+            console.log(bias);
+            setBias(bias);
 
-        // Observe changes and apply replacements dynamically
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach(mutation => mutation.addedNodes.forEach(replaceText));
-        });
+            // Observe changes and apply replacements dynamically
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach(mutation => mutation.addedNodes.forEach(replaceText));
+            });
 
-        observer.observe(document.body, { childList: true, subtree: true });
+            observer.observe(document.body, { childList: true, subtree: true });
 
-        return () => observer.disconnect(); // Cleanup on unmount
+            return () => observer.disconnect(); // Cleanup on unmount
+        }
+
+        checkBias();
     }, []);
 
-    return null;
+    return (
+        <div>
+            <h1>Bias: {bias}</h1>
+        </div>
+    );
 }
 
 export default PlasmoChanger;
