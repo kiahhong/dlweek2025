@@ -176,13 +176,15 @@ const PlasmoChanger = () => {
         <div style={{ 
             position: "fixed", 
             top: "5vh", 
-            right: "15vw", 
+            right: "12vw", 
             width: "10vw",  // Increased base size
             height: "10vw", // Increased base size
             zIndex: 1000,
             transform: `scale(${scale})`,
             transformOrigin: "center center",
-            transition: "transform 0.5s ease" 
+            transition: "transform 0.5s ease",
+            borderRadius: "50%",
+            overflow: "hidden"
         }}>
             {bias && <img 
                 ref={imgRef} 
