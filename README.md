@@ -1,2 +1,1 @@
-# dlweek2025
-im staying overnight
+We won poker by all in seven deuce
