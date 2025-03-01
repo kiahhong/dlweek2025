@@ -179,6 +179,14 @@ async def get_references(
     response_model=ReferenceStatementsResponse,
 )
 async def get_biasness(
-    text: str, bias_classifier: BiasClassifier = Depends(get_bias_classifier)
+    payload: dict, bias_classifier: BiasClassifier = Depends(get_bias_classifier)
 ):
+    text = payload.get("text")
     return bias_classifier.predict(text)
+
+
+# new route to get whatever payload and just print
+@router.post("/echo")
+async def echo(payload: dict):
+    print(payload)
+    return payload
