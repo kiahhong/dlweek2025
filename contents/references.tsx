@@ -251,6 +251,10 @@ interface BackendResponse {
     sentiment: any
 }
 
+// Create a map to track reference numbers
+let referenceCounter = 1;
+const referenceMap = new Map();
+
 const PlasmoChanger = () => {
     useEffect(() => {
         // Listen for messages from the popup
@@ -289,32 +293,41 @@ const PlasmoChanger = () => {
                         textToElement.set(normalizedText, { element: el, index: idx });
                     });
                     
+                    // Reset reference counter for each processing
+                    referenceCounter = 1;
+                    referenceMap.clear();
+                    
                     // Add citations to the DOM elements
                     response.statements.forEach(statement => {
-                        // Normalize statement text for comparison
                         const normalizedStatement = statement.sentence.trim().toLowerCase();
-                        
-                        // Find matching element by text content instead of index
                         const matchingElement = textToElement.get(normalizedStatement);
+                        
                         if (matchingElement) {
                             const domElement = document.querySelector(matchingElement.element.path);
                             if (domElement && domElement.textContent) {
-                                const refCount = statement.references.length;
                                 const originalText = domElement.textContent;
+                                
+                                // Get or create reference number for these URLs
+                                let refNumber;
+                                const urlKey = statement.references.join(',');
+                                if (referenceMap.has(urlKey)) {
+                                    refNumber = referenceMap.get(urlKey);
+                                } else {
+                                    refNumber = referenceCounter++;
+                                    referenceMap.set(urlKey, refNumber);
+                                }
                                 
                                 // Create citation link element
                                 const citationLink = document.createElement('a');
-                                citationLink.href = statement.references[0];
+                                citationLink.href = '#';
                                 citationLink.style.cssText = 'text-decoration: none; color: blue; cursor: pointer; font-size: 0.75em; vertical-align: super;';
-                                citationLink.textContent = `[${refCount}]`;
-                                citationLink.target = '_blank';
+                                citationLink.textContent = `[${refNumber}]`;
                                 
-                                if (statement.references.length > 1) {
-                                    citationLink.onclick = (e) => {
-                                        e.preventDefault();
-                                        statement.references.forEach(ref => window.open(ref, '_blank'));
-                                    };
-                                }
+                                // Open maximum of first 3 references in new tabs
+                                citationLink.onclick = (e) => {
+                                    e.preventDefault();
+                                    statement.references.slice(0, 3).forEach(ref => window.open(ref, '_blank'));
+                                };
                                 
                                 domElement.textContent = originalText;
                                 domElement.appendChild(citationLink);

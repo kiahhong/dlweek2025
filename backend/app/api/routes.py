@@ -22,6 +22,7 @@ from app.models.ReferenceStatement import (
     ReferenceStatementsResponse,
 )
 
+import redis
 
 router = APIRouter()
 
@@ -65,6 +66,13 @@ async def get_bias_classifier() -> BiasClassifier:
     return router.bias_classifier
 
 
+async def get_redis() -> redis.Redis:
+    """
+    Dependency function to get Redis client
+    """
+    return router.redis
+
+
 @router.post(
     "/references",
     tags=["Fake news detector"],
@@ -76,7 +84,17 @@ async def get_references(
     llm: Client = Depends(get_llm),
     llm_prompts: LLMPrompts = Depends(get_llm_prompts),
     search: Search = Depends(get_search),
+    redis: redis.Redis = Depends(get_redis),
 ) -> List[str]:
+    url = payload.get("url")
+    
+    # Check cache first
+    if url:
+        cached_response = redis.get(url)
+        if cached_response:
+            logger.info(f"Cache hit for URL: {url}")
+            return json.loads(cached_response)
+    
     documents = payload.get("documents")
 
     modeler.set_model_params(
@@ -208,11 +226,22 @@ async def get_references(
             print(e)
             pass
 
-    return ReferenceStatementsResponse(
+    response = ReferenceStatementsResponse(
         statements=supported_statements,
         analysis=structured_output_analysis,
         sentiment=structured_output_sentiment,
     )
+
+    # Cache the response with the URL as key
+    if url:
+        redis.setex(
+            url,
+            3600,  # cache for 1 hour
+            json.dumps(response.dict())
+        )
+        logger.info(f"Cached response for URL: {url}")
+
+    return response
 
 
 @router.post(
@@ -234,3 +263,23 @@ async def get_biasness(
 async def echo(payload: dict):
     print(payload)
     return payload
+
+@router.get("/cache", tags=["Debug"])
+async def get_cache(redis: redis.Redis = Depends(get_redis)):
+    # Get all keys
+    keys = redis.keys('*')
+    cache_contents = {}
+    
+    # Get values for all keys
+    for key in keys:
+        value = redis.get(key)
+        ttl = redis.ttl(key)
+        cache_contents[key] = {
+            'value': json.loads(value) if value else None,
+            'ttl': ttl
+        }
+    
+    return {
+        'keys_count': len(keys),
+        'contents': cache_contents
+    }
