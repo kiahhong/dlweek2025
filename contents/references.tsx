@@ -283,7 +283,7 @@ const PlasmoChanger = () => {
                     const response2 = await sendToBackend(elements);
                     console.log("Response from backend:", response2);
                     
-                    const response: BackendResponse = sampleJsonInput2;
+                    const response: BackendResponse = response2;
                     
                     // Create a map of text content to elements for more reliable matching
                     const textToElement = new Map();
