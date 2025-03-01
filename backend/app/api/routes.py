@@ -25,6 +25,8 @@ from app.models.ReferenceStatement import (
 
 import redis
 from app.models.ClickbaitRequest import ClickbaitRequest, ClickbaitOutput
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 router = APIRouter()
 
@@ -304,13 +306,13 @@ async def get_genimgness(
 @router.post(
     "/clickbait",
     tags=["Article clickbait detector"],
-    response_model=ClickbaitRequest,
+    response_model=ClickbaitOutput,
 )
 async def get_clickbait(
     request: ClickbaitRequest,
     llm: Client = Depends(get_llm),
     llm_prompts: LLMPrompts = Depends(get_llm_prompts),
-) -> ClickbaitOutput:
+) -> JSONResponse:
     request_article = request.article
     request_body = request.body
 
@@ -339,9 +341,17 @@ async def get_clickbait(
         except Exception as e:
             print(e)
             pass
-
-    return ClickbaitOutput(
-        clickbait=structured_output_clickbait,
-        new_header=structured_output_new_header,
+    
+    print(structured_output_clickbait, structured_output_new_header)
+    return JSONResponse(
+        content={
+            "clickbait": structured_output_clickbait,
+            "new_header": structured_output_new_header
+        },
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+        }
     )
 

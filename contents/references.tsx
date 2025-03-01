@@ -314,6 +314,64 @@ function getArticleTitle() {
     }
 }
 
+function modifyTitle(newTitle: string) {
+    const titleElement = document.querySelector("h1");
+    if (titleElement) {
+        console.log("Title element found at", titleElement);
+        const oldTitle = titleElement.textContent;
+        
+        // Clear the title element
+        titleElement.textContent = '';
+        
+        // Create strike-through span for old title
+        const strikeSpan = document.createElement('span');
+        strikeSpan.style.textDecoration = 'line-through';
+        strikeSpan.style.color = '#666';
+        strikeSpan.textContent = oldTitle;
+        
+        // Create span for new title
+        const newSpan = document.createElement('span');
+        newSpan.style.color = '#1D9BF0';  // Twitter blue color
+        newSpan.style.marginLeft = '10px';
+        newSpan.textContent = newTitle;
+        
+        // Append both spans to the title element
+        titleElement.appendChild(strikeSpan);
+        titleElement.appendChild(newSpan);
+    } else {
+        const metaTitleElement = document.querySelector("meta[property='og:title']") as HTMLMetaElement;
+        if (metaTitleElement) {
+            // Create a new h1 element since one doesn't exist
+            const titleElement = document.createElement("h1");
+            const oldTitle = metaTitleElement.content;
+            
+            // Create strike-through span for old title
+            const strikeSpan = document.createElement('span');
+            strikeSpan.style.textDecoration = 'line-through';
+            strikeSpan.style.color = '#666';
+            strikeSpan.textContent = oldTitle;
+            
+            // Create span for new title
+            const newSpan = document.createElement('span');
+            newSpan.style.color = '#1D9BF0';
+            newSpan.style.marginLeft = '10px';
+            newSpan.textContent = newTitle;
+            
+            // Add spans to the title element
+            titleElement.appendChild(strikeSpan);
+            titleElement.appendChild(newSpan);
+            
+            // Style and insert the new title element
+            titleElement.style.textAlign = "center";
+            titleElement.style.margin = "20px 0";
+            document.body.insertBefore(titleElement, document.body.firstChild);
+            
+            // Update meta title
+            metaTitleElement.content = newTitle;
+        }
+    }
+}
+
 const parseHTMLToMarkdown = () => {
     const title = document.title || "Untitled";
     let markdown = `# ${title}\n\n`;
@@ -351,14 +409,14 @@ const parseHTMLToMarkdown = () => {
 };
 
 async function sendToBackendTitleContext() {
-    const response = await fetch('http://localhost:8000/echo', {
+    const response = await fetch('http://localhost:8000/clickbait', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            title: getArticleTitle(),
-            context: parseHTMLToMarkdown()
+            article: getArticleTitle(),
+            body: parseHTMLToMarkdown()
         })
     });
 
@@ -450,6 +508,12 @@ const PlasmoChanger = () => {
 
                     const titleContext = await sendToBackendTitleContext();
                     console.log("Title context:", titleContext);
+
+                    // check if clickbait is true
+                    if (titleContext.clickbait == "yes") {
+                        // change the title
+                        modifyTitle(titleContext.new_header);
+                    }
                 };
 
                 // Run the processing
