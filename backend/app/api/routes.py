@@ -13,6 +13,7 @@ from app.services.topic_modeler import TopicModeler
 from app.services.llm import LLMPrompts
 from app.services.search import Search
 from app.artifacts.BiasClassifier import BiasClassifier
+from app.artifacts.GenImgClassifier import GenImgClassifier
 
 from app.models.TopicLLMOutput import TopicLLMOutput
 from app.models.FeedbackOutput import FeedbackOutput
@@ -64,6 +65,11 @@ async def get_bias_classifier() -> BiasClassifier:
     """
     return router.bias_classifier
 
+async def get_genimg_classifier() -> GenImgClassifier:
+    """
+    Dependency function to get GenImg Classifier
+    """
+    return router.genimg_classifier
 
 @router.post(
     "/references",
@@ -224,3 +230,14 @@ async def get_biasness(
     text: str, bias_classifier: BiasClassifier = Depends(get_bias_classifier)
 ):
     return bias_classifier.predict(text)
+
+
+@router.post(
+    "/imageClassify",
+    tags=["Generated Image Classifier"],
+    response_model=List[float]
+)
+async def get_genimgness(
+    path: str, genimg_classifier: GenImgClassifier = Depends(get_genimg_classifier)
+):
+    return genimg_classifier.predict(path)
