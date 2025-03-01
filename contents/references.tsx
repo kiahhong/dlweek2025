@@ -255,6 +255,116 @@ interface BackendResponse {
 let referenceCounter = 1;
 const referenceMap = new Map();
 
+// Function to check if the page is a news article
+const isNewsArticle = () => {
+    const ogType = document.querySelector("meta[property='og:type']") as HTMLMetaElement;
+    const publishedTime = document.querySelector("meta[property='article:published_time']");
+    const articleTag = document.querySelector("article");
+    const url = window.location.href;
+
+    // URL patterns for news articles
+    const articlePatterns = [/\/\d{4}\/\d{2}\/\d{2}\//, /\/news\//, /\/article\//];
+
+    return ogType?.content === "article" || publishedTime || articleTag || articlePatterns.some(pattern => pattern.test(url));
+}
+
+
+// Function to find the main heading of the article and underline it
+const underlineArticleTitle = () => {
+    let titleElement = document.querySelector("h1"); // Main article title is often in <h1>
+
+    if (!titleElement) {
+        // Fallback to OpenGraph title
+        const metaTitleElement = document.querySelector("meta[property='og:title']") as HTMLMetaElement;
+        let metaTitle = metaTitleElement?.content;
+        if (!metaTitle) {
+            // Last resort: use the <title> tag
+            metaTitle = document.title;
+        }
+
+        // If we found a meta title but no <h1>, create a fake <h1> to display it
+        if (metaTitle) {
+            titleElement = document.createElement("h1");
+            titleElement.textContent = metaTitle;
+            titleElement.style.textAlign = "center";
+            document.body.insertBefore(titleElement, document.body.firstChild);
+        }
+    }
+
+    if (titleElement) {
+        titleElement.style.textDecoration = "underline";
+        titleElement.style.textDecorationColor = "#1D9BF0"; // Blue underline
+        titleElement.style.textDecorationThickness = "3px";
+    }
+}
+
+function getArticleTitle() {
+    const titleElement = document.querySelector("h1");
+    if (titleElement) {
+        return titleElement.textContent;
+    } else {
+        const metaTitleElement = document.querySelector("meta[property='og:title']") as HTMLMetaElement;
+        let metaTitle = metaTitleElement?.content;
+        if (!metaTitle) {
+            // Last resort: use the <title> tag
+            metaTitle = document.title;
+        }
+
+        return metaTitle;
+    }
+}
+
+const parseHTMLToMarkdown = () => {
+    const title = document.title || "Untitled";
+    let markdown = `# ${title}\n\n`;
+
+    const contentContainer = document.querySelector("article") || document.body;
+    
+    const convertNodeToMarkdown = (node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+            return node.nodeValue.trim();
+        }
+
+        if (node.nodeType !== Node.ELEMENT_NODE) {
+            return "";
+        }
+
+        const tag = node.tagName.toLowerCase();
+
+        if (tag === "h1") return `# ${node.innerText}\n\n`;
+        if (tag === "h2") return `## ${node.innerText}\n\n`;
+        if (tag === "h3") return `### ${node.innerText}\n\n`;
+        if (tag === "h4") return `#### ${node.innerText}\n\n`;
+        if (tag === "h5") return `##### ${node.innerText}\n\n`;
+        if (tag === "h6") return `###### ${node.innerText}\n\n`;
+        if (tag === "p") return `${node.innerText}\n\n`;
+        if (tag === "ul") return `${[...node.children].map(li => `- ${li.innerText}`).join("\n")}\n\n`;
+        if (tag === "ol") return `${[...node.children].map((li, i) => `${i + 1}. ${li.innerText}`).join("\n")}\n\n`;
+        if (tag === "img") return `![${node.alt}](${node.src})\n\n`;
+        if (tag === "a") return `[${node.innerText}](${node.href})`;
+        
+        return [...node.childNodes].map(convertNodeToMarkdown).join(" ");
+    };
+
+    markdown += convertNodeToMarkdown(contentContainer);
+    return markdown;
+};
+
+async function sendToBackendTitleContext() {
+    const response = await fetch('http://localhost:8000/echo', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            title: getArticleTitle(),
+            context: parseHTMLToMarkdown()
+        })
+    });
+
+    const data = await response.json();
+    return data;
+}
 const PlasmoChanger = () => {
     useEffect(() => {
         // Listen for messages from the popup
@@ -263,6 +373,8 @@ const PlasmoChanger = () => {
             if (request.type === "ANALYZE_PAGE") {
                 // Function to process references
                 const processReferences = async () => {
+                    if (!isNewsArticle()) return;
+                    
                     if ((window as any).__referencesProcessed) {
                         return;
                     }
@@ -335,6 +447,9 @@ const PlasmoChanger = () => {
                             }
                         }
                     });
+
+                    const titleContext = await sendToBackendTitleContext();
+                    console.log("Title context:", titleContext);
                 };
 
                 // Run the processing
