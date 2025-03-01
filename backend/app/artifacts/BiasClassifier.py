@@ -1,13 +1,15 @@
 import torch
-from transformers import AutoTokenizer, DistilBertForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 
 class BiasClassifier:
     def __init__(self, device):  # Fixed __init__ method
         self.device = device
-        self.tokenizer = AutoTokenizer.from_pretrained("distilled_biasBERT")
-        self.model = DistilBertForSequenceClassification.from_pretrained(
-            "distilled_biasBERT"
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            "bucketresearch/politicalBiasBERT"
+        )
+        self.model = AutoModelForSequenceClassification.from_pretrained(
+            "bucketresearch/politicalBiasBERT"
         ).to(self.device)
         self.model.eval()  # Set model to evaluation mode
 
