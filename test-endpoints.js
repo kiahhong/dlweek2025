@@ -31,9 +31,9 @@ async function testEndpoints() {
             const biasResponse = await fetch(`${BASE_URL}/bias`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'text/plain'
+                    'Content-Type': 'application/json'
                 },
-                body: { "text": text }
+                body: JSON.stringify({ "text": "yes" })
             })
             
             if (!biasResponse.ok) {
@@ -46,26 +46,20 @@ async function testEndpoints() {
             console.log(`✅ Bias Analysis for "${text.slice(0, 30)}...":`, biasData)
         }
 
-        // Test 3: Echo endpoint (for debugging)
-        console.log('\n🧪 Testing /echo endpoint...')
-        const testPayload = {
-            message: "Hello API",
-            timestamp: new Date().toISOString(),
-            testData: {
-                number: 42,
-                array: [1, 2, 3],
-                nested: { key: "value" }
-            }
-        }
-        const echoResponse = await fetch(`${BASE_URL}/echo`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(testPayload)
-        })
-        const echoData = await echoResponse.json()
-        console.log('✅ Echo Response:', echoData)
+        // // Test 3: Echo endpoint (for debugging)
+        // console.log('\n🧪 Testing /echo endpoint...')
+        // const testPayload = {
+        //     text: "yes"
+        // }
+        // const echoResponse = await fetch(`${BASE_URL}/echo`, {
+        //     method: 'POST',
+        //     headers: {
+        //         'Content-Type': 'application/json'
+        //     },
+        //     body: JSON.stringify(testPayload)
+        // })
+        // const echoData = await echoResponse.json()
+        // console.log('✅ Echo Response:', echoData)
 
     } catch (error) {
         console.error('❌ Error during testing:', error)

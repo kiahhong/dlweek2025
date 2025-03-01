@@ -226,9 +226,3 @@ async def get_biasness(
     text = payload.get("text")
     return bias_classifier.predict(text)
 
-
-# new route to get whatever payload and just print
-@router.post("/echo")
-async def echo(payload: dict):
-    print(payload)
-    return payload
