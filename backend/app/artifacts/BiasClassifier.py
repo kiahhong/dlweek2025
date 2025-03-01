@@ -20,6 +20,7 @@ class BiasClassifier:
             max_length=512,
         )
         inputs = {key: val.to(self.device) for key, val in inputs.items()}
+        inputs.pop("token_type_ids", None)
         with torch.no_grad():
             outputs = self.model(**inputs)
             logits = outputs.logits
