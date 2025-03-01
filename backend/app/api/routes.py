@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends, Body
-from typing import List, Annotated, Optional
+from fastapi import APIRouter, Depends
+from typing import List
 import logging
 import nltk
 from nltk.tokenize import sent_tokenize
@@ -65,11 +65,13 @@ async def get_bias_classifier() -> BiasClassifier:
     """
     return router.bias_classifier
 
+
 async def get_genimg_classifier() -> GenImgClassifier:
     """
     Dependency function to get GenImg Classifier
     """
     return router.genimg_classifier
+
 
 @router.post(
     "/references",
@@ -232,11 +234,7 @@ async def get_biasness(
     return bias_classifier.predict(text)
 
 
-@router.post(
-    "/imageClassify",
-    tags=["Generated Image Classifier"],
-    response_model=str
-)
+@router.post("/imageClassify", tags=["Generated Image Classifier"], response_model=str)
 async def get_genimgness(
     path: str, genimg_classifier: GenImgClassifier = Depends(get_genimg_classifier)
 ):
@@ -250,20 +248,19 @@ async def get_genimgness(
     response_model=ClickbaitRequest,
 )
 async def get_clickbait(
-    documentsObj: ClickbaitRequest,
-    modeler: TopicModeler = Depends(get_topic_modeler),
+    request: ClickbaitRequest,
     llm: Client = Depends(get_llm),
     llm_prompts: LLMPrompts = Depends(get_llm_prompts),
-) -> List[str,str]:
-    
-    documents = documentsObj.documents
+) -> ClickbaitOutput:
+    request_article = request.article
+    request_body = request.body
 
     output = llm.models.generate_content(
         model="gemini-2.0-flash-exp",
         contents=json.dumps(
             {
-                "article": " ".join(documents),
-                "body": documents.new_article,
+                "article": request_article,
+                "body": request_body,
             }
         ),
         config=types.GenerateContentConfig(
@@ -285,7 +282,7 @@ async def get_clickbait(
             pass
 
     return ClickbaitOutput(
-    
         clickbait=structured_output_clickbait,
         new_header=structured_output_new_header,
     )
+
