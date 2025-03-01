@@ -297,7 +297,7 @@ async def get_cache(redis: redis.Redis = Depends(get_redis)):
     }
 
 
-@router.post("/imageClassify", tags=["Generated Image Classifier"], response_model=str)
+@router.post("/imageClassify", tags=["Generated Image Classifier"])
 async def get_genimgness(
     payload: dict,
     genimg_classifier: GenImgClassifier = Depends(get_genimg_classifier)
@@ -309,7 +309,12 @@ async def get_genimgness(
     try:
         # Convert base64 to bytes
         image_data = base64.b64decode(base64_image)
-        return genimg_classifier.predict_base64(image_data)
+        prediction, modified_image_base64 = genimg_classifier.predict_base64(image_data)
+        
+        return {
+            "prediction": prediction == "fake",  # Convert to boolean
+            "image": modified_image_base64 if prediction == "fake" else base64_image
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid image data: {str(e)}")
 
